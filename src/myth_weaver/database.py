@@ -2,7 +2,7 @@ import os
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from myth_weaver.models import Base, Message, Campaign
+from myth_weaver.models import Base, Message, Campaign, Character
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +53,22 @@ class DatabaseManager:
             raise
 
     def get_current_state(self):
-        """Fetches current game state for LLM injection."""
-        # Note: In a full implementation, this queries the Character and NPC tables.
-        # Stubbed here to allow the first game to boot successfully.
+        """Fetches current game state and party details for LLM injection."""
+        party_data = []
+        if self.campaign_id:
+            characters = self.session.query(Character).filter_by(campaign_id=self.campaign_id).all()
+            for char in characters:
+                party_data.append({
+                    "name": char.name,
+                    "hp": char.hp or 10,
+                    "max_hp": char.max_hp or 10,
+                    "description": char.description or ""
+                })
+
         return {
-            "location": "The Broken Anvil Tavern",
+            "location": "The Broken Anvil Tavern", # We will make location dynamic later
             "time_of_day": "Late Evening",
-            "player_current_hp": 30,
-            "player_max_hp": 30,
+            "party": party_data,
             "npcs": "Bartender (Neutral)"
         }
     
