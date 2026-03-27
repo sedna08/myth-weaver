@@ -1,0 +1,10 @@
+[project]
+name = "myth-weaver"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "rollforge",
+]
+
+[tool.uv.sources]
+rollforge = { path = "wheels/rollforge-0.1.0-cp312-cp312-win_amd64.whl" }

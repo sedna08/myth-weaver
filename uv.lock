@@ -1,0 +1,22 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "myth-weaver"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "rollforge" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "rollforge", path = "wheels/rollforge-0.1.0-cp312-cp312-win_amd64.whl" }]
+
+[[package]]
+name = "rollforge"
+version = "0.1.0"
+source = { path = "wheels/rollforge-0.1.0-cp312-cp312-win_amd64.whl" }
+wheels = [
+    { filename = "rollforge-0.1.0-cp312-cp312-win_amd64.whl", hash = "sha256:16529906c081f9373f6d8043d78c30e9bf7df540d577756aeed36dea45bb69ad" },
+]
