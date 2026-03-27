@@ -88,3 +88,26 @@ def test_db_03_message_history_sliding_window(test_db_session):
     assert len(history) == 5
     assert history[0].content == "Message 1"
     assert history[-1].content == "Message 5"
+
+def test_db_04_get_all_campaigns(test_db_session):
+    """Ensure the DatabaseManager can fetch a list of all saved campaigns."""
+    from myth_weaver.database import DatabaseManager
+    from myth_weaver.models import Campaign
+    
+    manager = DatabaseManager(test_db_session)
+    
+    # Arrange: Create two dummy campaigns satisfying the NOT NULL title constraint
+    c1 = Campaign(title="Fantasy", campaign_bible={"campaign_name": "The Old Kingdom"})
+    c2 = Campaign(title="Sci-Fi", campaign_bible={"campaign_name": "Neon Horizon"})
+    manager.add(c1)
+    manager.add(c2)
+    manager.commit()
+    
+    # Act: Attempt to fetch them
+    campaigns = manager.get_all_campaigns()
+    
+    # Assert
+    assert len(campaigns) >= 2
+    names = [c.campaign_bible.get("campaign_name") for c in campaigns if c.campaign_bible]
+    assert "The Old Kingdom" in names
+    assert "Neon Horizon" in names

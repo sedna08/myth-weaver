@@ -84,3 +84,18 @@ class DatabaseManager:
                 if not m.get("is_completed"):
                     return m.get("objective", "Unknown objective")
         return "Explore the world."
+
+    def get_all_campaigns(self) -> list[Campaign]:
+        """
+        Fetches a list of all saved campaigns. 
+        Orders them descending by ID so the most recent is first.
+        """
+        try:
+            return (
+                self.session.query(Campaign)
+                .order_by(Campaign.id.desc())
+                .all()
+            )
+        except Exception as e:
+            logger.error("Failed to retrieve campaigns: %s", {"error": str(e)})
+            raise
