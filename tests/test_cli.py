@@ -2,7 +2,7 @@ import pytest
 from click.testing import CliRunner
 from unittest.mock import patch, MagicMock
 
-from myth_weaver.cli import cli, start_game
+from myth_weaver.cli import cli, start_game, load_game
 
 @pytest.fixture
 def runner():
@@ -57,3 +57,32 @@ def test_cli_processes_hint_command(mock_generate, mock_handle_hint, mock_get_db
     # Assert
     mock_handle_hint.assert_called_once()
     assert "A mysterious glow" in result.output
+
+@patch("myth_weaver.cli.get_db_session")
+@patch("myth_weaver.cli.ollama.chat")
+def test_cli_load_game_command(mock_chat, mock_get_db, runner):
+    """Test the 'load' command displays campaigns, accepts selection, and enters loop."""
+    # Arrange: Mock the database manager to return a fake campaign list
+    mock_db_manager = MagicMock()
+    
+    # Create a mock campaign object
+    mock_campaign = MagicMock()
+    mock_campaign.id = 1
+    mock_campaign.title = "Fantasy"
+    mock_campaign.campaign_bible = {"campaign_name": "The Old Kingdom"}
+    
+    mock_db_manager.get_all_campaigns.return_value = [mock_campaign]
+    
+    # When the CLI tries to init DatabaseManager, give it our mock
+    mock_get_db.return_value = MagicMock()
+    
+    # We must patch the DatabaseManager class instantiation inside cli.py
+    with patch("myth_weaver.cli.DatabaseManager", return_value=mock_db_manager):
+        # Act: User selects campaign "1" then types "quit"
+        result = runner.invoke(load_game, input="1\nquit\n")
+        
+        # Assert
+        assert result.exit_code == 0
+        assert "Available Campaigns:" in result.output
+        assert "[1] The Old Kingdom" in result.output
+        assert "Resuming The Old Kingdom..." in result.output
