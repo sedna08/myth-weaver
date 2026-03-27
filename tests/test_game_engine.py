@@ -42,7 +42,7 @@ def test_sys_05_state_injection(mock_db_session):
     assert "disgraced elven noble" in prompt, "First character description missing."
     assert "Gromm" in prompt, "Second character name missing."
     assert "gruff half-orc" in prompt, "Second character description missing."
-    assert "25 / 30" in prompt, "Character HP was not correctly injected."
+    assert "25/30" in prompt, "Character HP was not correctly injected."
     assert "Find the missing map" in prompt, "Active milestone context is missing."
 
 def test_sys_06_hint_system_active(mock_ollama, mock_db_session):

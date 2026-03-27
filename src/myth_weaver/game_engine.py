@@ -11,11 +11,30 @@ logger = logging.getLogger(__name__)
 def prepare_storyteller_prompt(db_session, intent_summary: str, rollforge_result: str) -> str:
     """
     Dynamically assembles the System Prompt for the Storyteller LLM (Pass 2)
-    to prevent hallucinations by injecting the current game state.
+    to prevent hallucinations by injecting the current game state, now supporting multiple players.
     """
     try:
         state = db_session.get_current_state()
         milestone = db_session.get_active_milestone()
+
+        # Dynamically build the Party State block
+        party = state.get("party", [])
+        party_lines = []
+        if party:
+            for char in party:
+                name = char.get("name", "Unknown")
+                hp = char.get("hp", 0)
+                max_hp = char.get("max_hp", 0)
+                desc = char.get("description", "")
+                
+                # Format: "- Eldrin (HP: 25/30): A disgraced elven noble..."
+                desc_str = f": {desc}" if desc else ""
+                party_lines.append(f"- {name} (HP: {hp}/{max_hp}){desc_str}")
+        else:
+            # Fallback if the database hasn't loaded characters properly yet
+            party_lines.append("- Unknown Adventurer (HP: 0/0)")
+            
+        party_state_str = "\n".join(party_lines)
 
         prompt = f"""[SYSTEM DIRECTIVE]
 You are the Dungeon Master for a text based roleplaying game. Your job is to describe the world, play the NPCs, and narrate the outcome of the player's actions.
@@ -25,7 +44,8 @@ You must adhere strictly to the CURRENT GAME STATE.
 [CURRENT GAME STATE]
 Location: {state.get('location', 'Unknown')}
 Time of Day: {state.get('time_of_day', 'Unknown')}
-Player HP: {state.get('player_current_hp', 0)} / {state.get('player_max_hp', 0)}
+Party Members:
+{party_state_str}
 NPCs Present: {state.get('npcs', 'None')}
 
 [ACTIVE CAMPAIGN CONTEXT]
