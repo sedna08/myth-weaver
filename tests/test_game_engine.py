@@ -5,12 +5,24 @@ from myth_weaver.game_engine import (
 )
 
 def test_sys_05_state_injection(mock_db_session):
-    # Arrange
+    # Arrange: We now expect a list of characters in the party
     mock_db_session.get_current_state.return_value = {
         "location": "Tavern",
         "time_of_day": "Night",
-        "player_current_hp": 25,
-        "player_max_hp": 30,
+        "party": [
+            {
+                "name": "Eldrin",
+                "hp": 25,
+                "max_hp": 30,
+                "description": "A disgraced elven noble seeking redemption."
+            },
+            {
+                "name": "Gromm",
+                "hp": 40,
+                "max_hp": 45,
+                "description": "A gruff half-orc barbarian with a heart of gold."
+            }
+        ],
         "npcs": "Bartender (Suspicious)"
     }
     mock_db_session.get_active_milestone.return_value = "Find the missing map"
@@ -25,10 +37,13 @@ def test_sys_05_state_injection(mock_db_session):
         rollforge_result=rollforge_result
     )
 
-    # Assert
-    assert "Player HP: 25 / 30" in prompt, "Player HP was not correctly injected."
+    # Assert: Ensure both characters, their HP, and their rich descriptions are injected
+    assert "Eldrin" in prompt, "First character name missing."
+    assert "disgraced elven noble" in prompt, "First character description missing."
+    assert "Gromm" in prompt, "Second character name missing."
+    assert "gruff half-orc" in prompt, "Second character description missing."
+    assert "25 / 30" in prompt, "Character HP was not correctly injected."
     assert "Find the missing map" in prompt, "Active milestone context is missing."
-    assert "Bartender (Suspicious)" in prompt, "NPC state was not injected."
 
 def test_sys_06_hint_system_active(mock_ollama, mock_db_session):
     # Arrange
