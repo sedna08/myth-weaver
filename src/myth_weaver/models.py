@@ -28,6 +28,7 @@ class Character(Base):
     id = Column(Integer, primary_key=True)
     campaign_id = Column(Integer, ForeignKey('campaigns.id'))
     name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
     hp = Column(Integer)
     max_hp = Column(Integer)
     armor_class = Column(Integer)
