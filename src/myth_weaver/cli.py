@@ -2,6 +2,7 @@ import logging
 import click
 import ollama
 from dotenv import load_dotenv
+import time
 
 from myth_weaver.intent_parser import parse_intent
 from myth_weaver.game_engine import handle_active_hint, prepare_storyteller_prompt
@@ -210,3 +211,62 @@ def load_game():
         except Exception as e:
             logger.error("Failed to process user input: %s", {"error": str(e)})
             click.echo("\nThe DM seems confused by that action. Please try again.\n")
+
+@cli.command(name="monitor")
+@click.option("--campaign-id", required=True, type=int, help="The ID of the campaign to monitor.")
+def monitor_game(campaign_id: int):
+    """Real-time debug monitor for a specific campaign state."""
+    try:
+        raw_session = get_db_session()
+        db_manager = DatabaseManager(raw_session)
+    except Exception as e:
+        click.echo(f"Database connection failed. Error: {e}")
+        return
+        
+    click.echo(f"Starting monitor for Campaign ID: {campaign_id}...\n")
+    
+    try:
+        while True:
+            state = db_manager.get_debug_state(campaign_id)
+            
+            # click.clear() clears the terminal screen so the data updates in place like a real dashboard
+            click.clear() 
+            click.echo("=" * 60)
+            click.echo(f"  MYTH WEAVER DEBUG MONITOR - CAMPAIGN ID: {campaign_id}")
+            click.echo("=" * 60)
+            
+            # 1. Display Active Milestone
+            click.echo(f"\n[ACTIVE CAMPAIGN OBJECTIVE]")
+            click.echo(f"> {state.get('milestone', 'Unknown')}")
+            
+            # 2. Display Party State
+            click.echo(f"\n[PARTY STATE]")
+            chars = state.get('characters', [])
+            if chars:
+                for char in chars:
+                    click.echo(f"- {char['name']} (HP: {char['hp']}/{char['max_hp']})")
+            else:
+                click.echo("- No characters found.")
+                
+            # 3. Display Recent History
+            click.echo(f"\n[RECENT HISTORY (Last 3 Messages)]")
+            msgs = state.get('recent_messages', [])
+            if msgs:
+                # We reverse the messages so the newest is at the bottom
+                for msg in reversed(msgs):
+                    role = "DM" if msg.get('role') == "assistant" else "Player"
+                    # Truncate content slightly so it fits neatly on the monitor
+                    content = msg.get('content', '').replace('\n', ' ')[:120] 
+                    click.echo(f"- {role}: {content}...")
+            else:
+                click.echo("- No recent messages.")
+                
+            click.echo("\n" + "=" * 60)
+            click.echo("Press Ctrl+C to exit monitor.")
+            
+            # Sleep for 2 seconds to avoid slamming your PostgreSQL database
+            time.sleep(2)
+            
+    except KeyboardInterrupt:
+        # Gracefully handle the user hitting Ctrl+C to quit
+        click.echo("\nExiting debug monitor. Farewell!")

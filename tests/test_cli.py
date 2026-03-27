@@ -1,8 +1,8 @@
 import pytest
 from click.testing import CliRunner
 from unittest.mock import patch, MagicMock
-
-from myth_weaver.cli import cli, start_game, load_game
+import time
+from myth_weaver.cli import cli, start_game, load_game, monitor_game
 
 @pytest.fixture
 def runner():
@@ -86,3 +86,25 @@ def test_cli_load_game_command(mock_chat, mock_get_db, runner):
         assert "Available Campaigns:" in result.output
         assert "[1] The Old Kingdom" in result.output
         assert "Resuming The Old Kingdom..." in result.output
+
+@patch("myth_weaver.cli.get_db_session")
+@patch("time.sleep", side_effect=KeyboardInterrupt) # Breaks the infinite loop after 1 tick
+def test_cli_monitor_command(mock_sleep, mock_get_db, runner):
+    """Test the 'monitor' command fetches and displays the live debug state."""
+    # Arrange: Mock the database manager's debug state
+    mock_db_manager = MagicMock()
+    mock_db_manager.get_debug_state.return_value = {
+        "milestone": "Defeat the Goblin King",
+        "characters": [{"name": "Eldrin", "hp": 25, "max_hp": 30}],
+        "recent_messages": [{"role": "user", "content": "I attack with my sword!"}]
+    }
+    
+    with patch("myth_weaver.cli.DatabaseManager", return_value=mock_db_manager):
+        # Act: Invoke the monitor command with a specific campaign ID
+        result = runner.invoke(monitor_game, ["--campaign-id", "1"])
+        
+        # Assert: Verify the mocked state was printed to the terminal
+        assert "Defeat the Goblin King" in result.output
+        assert "Eldrin" in result.output
+        assert "25/30" in result.output
+        assert "I attack with my sword!" in result.output
