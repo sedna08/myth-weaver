@@ -1,0 +1,17 @@
+[lint]
+# E: pycodestyle errors
+# F: pyflakes
+# W: pycodestyle warnings
+# I: isort (import sorting)
+# B: flake8-bugbear (common bugs and design problems)
+select = ["E", "F", "W", "I", "B"]
+ignore = []
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+[format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
