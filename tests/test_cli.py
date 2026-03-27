@@ -1,39 +1,46 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from click.testing import CliRunner
+from unittest.mock import patch
 
-# This will fail because cli.py is empty
-from myth_weaver.cli import process_user_input
+# This will fail until we build the Click interface in cli.py
+from myth_weaver.cli import cli, start_game
+
+@pytest.fixture
+def runner():
+    """Provides a Click CliRunner for invoking commands in isolation."""
+    return CliRunner()
+
+def test_cli_help_menu(runner):
+    """Ensure the base CLI group registers and displays help."""
+    result = runner.invoke(cli, ["--help"])
+    assert result.exit_code == 0
+    assert "Myth Weaver: LLM Dungeon Master" in result.output
+
+@patch("myth_weaver.cli.generate_campaign_bible")
+def test_cli_start_game_command(mock_generate, runner):
+    """Test the 'start' command triggers campaign generation and engine loop."""
+    # Arrange
+    mock_generate.return_value = {"campaign_name": "Test Realm"}
+    
+    # Act
+    # We pass the theme argument to the click command
+    result = runner.invoke(start_game, ["--theme", "Dark Fantasy"])
+    
+    # Assert
+    assert result.exit_code == 0
+    mock_generate.assert_called_once()
+    assert "Starting new Dark Fantasy campaign" in result.output
 
 @patch("myth_weaver.cli.handle_active_hint")
-def test_cli_processes_hint_command(mock_handle_hint):
+def test_cli_processes_hint_command(mock_handle_hint, runner):
+    """Test that submitting /hint within the game loop triggers the hint system."""
     # Arrange
-    db_session = MagicMock()
     mock_handle_hint.return_value = "A mysterious glow emanates from the floorboards..."
-
+    
     # Act
-    # The CLI should intercept commands starting with '/' and route them appropriately
-    response = process_user_input("/hint", db_session)
-
+    # We simulate user input typing "/hint" then "quit" to break the loop
+    result = runner.invoke(start_game, ["--theme", "High Magic"], input="/hint\nquit\n")
+    
     # Assert
-    mock_handle_hint.assert_called_once_with(db_session)
-    assert response == "A mysterious glow emanates from the floorboards..."
-
-@patch("myth_weaver.cli.parse_intent")
-@patch("myth_weaver.cli.prepare_storyteller_prompt")
-def test_cli_processes_standard_action(mock_prepare_prompt, mock_parse_intent):
-    # Arrange
-    db_session = MagicMock()
-    # Mocking the Intent Parser returning a non-mechanic dialogue action
-    mock_parse_intent.return_value = {
-        "action_type": "dialogue", 
-        "requires_rollforge": False, 
-        "intent_summary": "Talk to the guard"
-    }
-    mock_prepare_prompt.return_value = "System prompt constructed."
-
-    # Act
-    process_user_input("I say hello to the guard.", db_session)
-
-    # Assert
-    mock_parse_intent.assert_called_once_with("I say hello to the guard.")
-    mock_prepare_prompt.assert_called_once()
+    mock_handle_hint.assert_called_once()
+    assert "A mysterious glow" in result.output
