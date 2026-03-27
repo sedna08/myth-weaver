@@ -1,8 +1,7 @@
 import pytest
 from click.testing import CliRunner
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
-# This will fail until we build the Click interface in cli.py
 from myth_weaver.cli import cli, start_game
 
 @pytest.fixture
@@ -16,29 +15,34 @@ def test_cli_help_menu(runner):
     assert result.exit_code == 0
     assert "Myth Weaver: LLM Dungeon Master" in result.output
 
+@patch("myth_weaver.cli.get_db_session")
 @patch("myth_weaver.cli.generate_campaign_bible")
-def test_cli_start_game_command(mock_generate, runner):
+def test_cli_start_game_command(mock_generate, mock_get_db, runner):
     """Test the 'start' command triggers campaign generation and engine loop."""
     # Arrange
+    mock_get_db.return_value = MagicMock()
     mock_generate.return_value = {"campaign_name": "Test Realm"}
     
     # Act
-    # We pass the theme argument to the click command
     result = runner.invoke(start_game, ["--theme", "Dark Fantasy"])
     
     # Assert
     assert result.exit_code == 0
     mock_generate.assert_called_once()
-    assert "Starting new Dark Fantasy campaign" in result.output
+    # Update the expected string to match our new CLI output
+    assert "Generating the Dark Fantasy Campaign Bible" in result.output
 
+@patch("myth_weaver.cli.get_db_session")
 @patch("myth_weaver.cli.handle_active_hint")
-def test_cli_processes_hint_command(mock_handle_hint, runner):
+@patch("myth_weaver.cli.generate_campaign_bible")
+def test_cli_processes_hint_command(mock_generate, mock_handle_hint, mock_get_db, runner):
     """Test that submitting /hint within the game loop triggers the hint system."""
     # Arrange
+    mock_get_db.return_value = MagicMock()
+    mock_generate.return_value = {"campaign_name": "Hint Realm"}
     mock_handle_hint.return_value = "A mysterious glow emanates from the floorboards..."
     
     # Act
-    # We simulate user input typing "/hint" then "quit" to break the loop
     result = runner.invoke(start_game, ["--theme", "High Magic"], input="/hint\nquit\n")
     
     # Assert

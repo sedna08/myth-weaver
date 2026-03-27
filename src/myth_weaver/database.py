@@ -1,21 +1,45 @@
+import os
 import logging
-from myth_weaver.models import Message
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from myth_weaver.models import Base, Message, Campaign
 
 logger = logging.getLogger(__name__)
 
+def get_db_session():
+    """Initializes the PostgreSQL connection and returns a session."""
+    user = os.getenv("POSTGRES_USER", "mythweaver")
+    password = os.getenv("POSTGRES_PASSWORD", "devpassword")
+    db = os.getenv("POSTGRES_DB", "mythweaver")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5432")
+
+    db_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
+    engine = create_engine(db_url)
+    
+    # Ensure tables exist
+    Base.metadata.create_all(engine)
+    
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    return SessionLocal()
+
 class DatabaseManager:
-    """
-    Manages SQLAlchemy sessions and handles CRUD operations for the game engine.
-    """
-    def __init__(self, session):
+    """Manages SQLAlchemy sessions and handles CRUD operations."""
+    def __init__(self, session, campaign_id=None):
         self.session = session
+        self.campaign_id = campaign_id
+
+    def add(self, entity):
+        self.session.add(entity)
+        
+    def commit(self):
+        self.session.commit()
+        
+    def rollback(self):
+        self.session.rollback()
 
     def get_recent_history(self, campaign_id: int, limit: int = 5) -> list[Message]:
-        """
-        Retrieves the most recent messages for the conversation sliding window.
-        """
         try:
-            # Query the latest messages ordered by descending timestamp/id, limited by the threshold
             messages = (
                 self.session.query(Message)
                 .filter(Message.campaign_id == campaign_id)
@@ -23,9 +47,32 @@ class DatabaseManager:
                 .limit(limit)
                 .all()
             )
-            # Reverse the list so it is in chronological order for the LLM prompt
             return messages[::-1]
-            
         except Exception as e:
             logger.error("Failed to retrieve recent history: %s", {"error": str(e), "campaign_id": campaign_id})
             raise
+
+    def get_current_state(self):
+        """Fetches current game state for LLM injection."""
+        # Note: In a full implementation, this queries the Character and NPC tables.
+        # Stubbed here to allow the first game to boot successfully.
+        return {
+            "location": "The Broken Anvil Tavern",
+            "time_of_day": "Late Evening",
+            "player_current_hp": 30,
+            "player_max_hp": 30,
+            "npcs": "Bartender (Neutral)"
+        }
+    
+    def get_active_milestone(self):
+        """Fetches the active objective from the Campaign Bible."""
+        if not self.campaign_id:
+            return "Survive and explore."
+            
+        campaign = self.session.query(Campaign).filter_by(id=self.campaign_id).first()
+        if campaign and campaign.campaign_bible:
+            milestones = campaign.campaign_bible.get("milestones", [])
+            for m in milestones:
+                if not m.get("is_completed"):
+                    return m.get("objective", "Unknown objective")
+        return "Explore the world."
