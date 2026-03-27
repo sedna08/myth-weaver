@@ -99,3 +99,45 @@ class DatabaseManager:
         except Exception as e:
             logger.error("Failed to retrieve campaigns: %s", {"error": str(e)})
             raise
+
+    def get_debug_state(self, campaign_id: int) -> dict:
+        """Fetches a unified, read-only state dictionary for the real-time debug monitor."""
+        state = {
+            "milestone": "Unknown",
+            "characters": [],
+            "recent_messages": []
+        }
+        try:
+            # 1. Fetch Active Milestone
+            campaign = self.session.query(Campaign).filter_by(id=campaign_id).first()
+            if campaign and campaign.campaign_bible:
+                milestones = campaign.campaign_bible.get("milestones", [])
+                active_milestone = next(
+                    (m.get("objective") for m in milestones if not m.get("is_completed", False)), 
+                    "No active milestones"
+                )
+                state["milestone"] = active_milestone
+
+            # 2. Fetch Party Status
+            characters = self.session.query(Character).filter_by(campaign_id=campaign_id).all()
+            for char in characters:
+                state["characters"].append({
+                    "name": char.name,
+                    "hp": char.hp,
+                    "max_hp": char.max_hp
+                })
+
+            # 3. Fetch Last Few Messages (using your existing method)
+            # We fetch 3 so the monitor doesn't get overly cluttered
+            recent_msgs = self.get_recent_history(campaign_id, limit=3) 
+            for msg in recent_msgs:
+                state["recent_messages"].append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+
+            return state
+            
+        except Exception as e:
+            logger.error("Failed to fetch debug state: %s", {"error": str(e)})
+            return state

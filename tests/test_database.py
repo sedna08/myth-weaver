@@ -111,3 +111,37 @@ def test_db_04_get_all_campaigns(test_db_session):
     names = [c.campaign_bible.get("campaign_name") for c in campaigns if c.campaign_bible]
     assert "The Old Kingdom" in names
     assert "Neon Horizon" in names
+
+def test_db_05_get_debug_state(test_db_session):
+    """Ensure the DatabaseManager can fetch a unified debug state for the monitor."""
+    from myth_weaver.database import DatabaseManager
+    from myth_weaver.models import Campaign, Character, Message
+    
+    manager = DatabaseManager(test_db_session)
+    
+    # Arrange: Setup a campaign with a character and a message
+    c = Campaign(title="Monitor Test", campaign_bible={"milestones": [{"objective": "Test the monitor", "is_completed": False}]})
+    manager.add(c)
+    manager.commit()
+    
+    char = Character(campaign_id=c.id, name="Observer", hp=10, max_hp=10)
+    msg = Message(campaign_id=c.id, role="user", content="I look around.")
+    
+    manager.add(char)
+    manager.add(msg)
+    manager.commit()
+    
+    # Act: Fetch the debug state
+    debug_state = manager.get_debug_state(c.id)
+    
+    # Assert
+    assert "milestone" in debug_state
+    assert debug_state["milestone"] == "Test the monitor"
+    
+    assert "characters" in debug_state
+    assert len(debug_state["characters"]) == 1
+    assert debug_state["characters"][0]["name"] == "Observer"
+    
+    assert "recent_messages" in debug_state
+    assert len(debug_state["recent_messages"]) == 1
+    assert debug_state["recent_messages"][0]["content"] == "I look around."
